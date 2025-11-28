@@ -90,11 +90,44 @@ def split_by_size(base_path, base_name, header, rows, max_bytes, log_fn=None, ui
 # ------------------------------------------------------------
 #  MODO 1: JSON simple (array de productos tipo BigCommerce)
 # ------------------------------------------------------------
-def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_update_fn=None):
+def generate_csv_from_products(
+    products,
+    base_path,
+    max_bytes,
+    log_fn=None,
+    ui_update_fn=None,
+    progress_set_total=None,
+    progress_step=None,
+):
     """
     Motor original: array de objetos con campos id/name/sku/variants/categories…
     Genera products_X.csv, variants_X.csv, categories_X.csv.
     """
+
+    # Pre-cálculo de unidades de trabajo: productos + variantes + categorías
+    num_products = len(products)
+    num_variants = 0
+    category_set_pre = set()
+
+    for item in products:
+        variants = item.get("variants", []) or []
+        num_variants += len(variants)
+
+        categories = item.get("categories", []) or []
+        for c in categories:
+            if isinstance(c, dict):
+                name_cat = (c.get("name") or "").strip()
+            else:
+                name_cat = str(c).strip()
+            if name_cat:
+                category_set_pre.add(name_cat)
+
+    num_categories = len(category_set_pre)
+    total_units = num_products + num_variants + num_categories
+
+    if progress_set_total and total_units > 0:
+        progress_set_total(total_units)
+
     product_rows = []
     variant_rows = []
     category_set = set()
@@ -158,6 +191,9 @@ def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_u
         )
         product_rows.append(product_row)
 
+        if progress_step:
+            progress_step(1)
+
         # Variantes
         variants = item.get("variants", []) or []
         for v in variants:
@@ -178,6 +214,9 @@ def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_u
             )
             variant_rows.append(variant_row)
 
+            if progress_step:
+                progress_step(1)
+
         if ui_update_fn and idx % 50 == 0:
             ui_update_fn()
             if log_fn:
@@ -188,11 +227,14 @@ def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_u
         log_fn(f"Total filas variantes: {len(variant_rows)}")
         log_fn(f"Total categorías únicas: {len(category_set)}")
 
-    # Categorías
+    # Categorías (usamos category_set_pre para no perder ninguna)
     category_rows = []
-    for cat in sorted(category_set):
+    for cat in sorted(category_set_pre):
         ref_cat = cat.strip().replace(" ", "_")
         category_rows.append(f"{escape_csv(ref_cat)},{escape_csv(cat)},")
+
+        if progress_step:
+            progress_step(1)
 
     if log_fn:
         log_fn("Dividiendo y guardando products_*.csv…")
@@ -210,7 +252,15 @@ def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_u
 # ------------------------------------------------------------
 #  MODO 2: JSON Sales Layer genérico (todas las tablas)
 # ------------------------------------------------------------
-def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_fn=None):
+def export_saleslayer_tables(
+    raw,
+    base_path,
+    max_bytes,
+    log_fn=None,
+    ui_update_fn=None,
+    progress_set_total=None,
+    progress_step=None,
+):
     """
     Recorre data_schema + data y crea un CSV por tabla:
     catalogue_X.csv, products_X.csv, product_formats_X.csv, mat_tabla_test_X.csv, etc.
@@ -222,6 +272,16 @@ def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_f
 
     if log_fn:
         log_fn("Exportando todas las tablas de Sales Layer (modo genérico)…")
+
+    # Calcular total de filas (todas las tablas) para la barra de progreso
+    total_rows = 0
+    for table_name, schema_list in data_schema.items():
+        rows = data.get(table_name)
+        if isinstance(rows, list):
+            total_rows += len(rows)
+
+    if progress_set_total and total_rows > 0:
+        progress_set_total(total_rows)
 
     for table_name, schema_list in data_schema.items():
         rows = data.get(table_name)
@@ -295,7 +355,7 @@ def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_f
 
         # Construimos filas
         row_strings = []
-        total_rows = len(rows)
+        table_total_rows = len(rows)
 
         for r_idx, row in enumerate(rows, start=1):
             out_vals = []
@@ -304,10 +364,13 @@ def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_f
                 out_vals.append(escape_csv(transform_value(val, ctype)))
             row_strings.append(",".join(out_vals))
 
+            if progress_step:
+                progress_step(1)
+
             if ui_update_fn and r_idx % 100 == 0:
                 ui_update_fn()
                 if log_fn:
-                    log_fn(f"Tabla {table_name}: procesadas {r_idx}/{total_rows} filas…")
+                    log_fn(f"Tabla {table_name}: procesadas {r_idx}/{table_total_rows} filas…")
 
         # Guardar/splitear CSV de esta tabla
         split_by_size(base_path, table_name, header_line, row_strings, max_bytes, log_fn, ui_update_fn)
@@ -316,7 +379,14 @@ def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_f
 # ------------------------------------------------------------
 #  DETECCIÓN DE FORMATO + LÓGICA PRINCIPAL
 # ------------------------------------------------------------
-def process_json_file(json_path, log_fn=None, ui_update_fn=None, max_bytes=DEFAULT_MAX_MB * 1024 * 1024):
+def process_json_file(
+    json_path,
+    log_fn=None,
+    ui_update_fn=None,
+    max_bytes=DEFAULT_MAX_MB * 1024 * 1024,
+    progress_set_total=None,
+    progress_step=None,
+):
     base_path = os.path.dirname(json_path) or "."
 
     if log_fn:
@@ -335,13 +405,29 @@ def process_json_file(json_path, log_fn=None, ui_update_fn=None, max_bytes=DEFAU
     if isinstance(raw, list):
         if log_fn:
             log_fn("Detectado formato simple: array de productos en la raíz.")
-        generate_csv_from_products(raw, base_path, max_bytes, log_fn, ui_update_fn)
+        generate_csv_from_products(
+            raw,
+            base_path,
+            max_bytes,
+            log_fn,
+            ui_update_fn,
+            progress_set_total,
+            progress_step,
+        )
 
     # Caso 2: JSON de Sales Layer (data_schema + data)
     elif isinstance(raw, dict) and "data_schema" in raw and "data" in raw:
         if log_fn:
             log_fn("Detectado JSON de Sales Layer (data_schema + data).")
-        export_saleslayer_tables(raw, base_path, max_bytes, log_fn, ui_update_fn)
+        export_saleslayer_tables(
+            raw,
+            base_path,
+            max_bytes,
+            log_fn,
+            ui_update_fn,
+            progress_set_total,
+            progress_step,
+        )
 
     else:
         messagebox.showerror(
@@ -406,12 +492,12 @@ class JsonToCsvApp:
         self.size_entry = tk.Entry(size_frame, textvariable=self.size_var, width=6)
         self.size_entry.pack(side="left", padx=5)
 
-        # Barra de progreso
+        # Barra de progreso (ahora en modo determinate)
         progress_frame = tk.Frame(root)
         progress_frame.pack(padx=10, pady=(0, 10), fill="x")
 
         tk.Label(progress_frame, text="Progreso:").pack(anchor="w")
-        self.progress = ttk.Progressbar(progress_frame, mode="indeterminate")
+        self.progress = ttk.Progressbar(progress_frame, mode="determinate")
         self.progress.pack(fill="x")
 
         # Caja de log
@@ -437,6 +523,18 @@ class JsonToCsvApp:
         self.root.update_idletasks()
         self.root.update()
 
+    def set_progress_total(self, total):
+        """Configura el máximo de la barra de progreso."""
+        total = max(int(total), 1)
+        self.progress["maximum"] = total
+        self.progress["value"] = 0
+        self.ui_pump()
+
+    def progress_step(self, step=1):
+        """Avanza la barra de progreso."""
+        self.progress.step(step)
+        self.ui_pump()
+
     def select_file(self):
         file_path = filedialog.askopenfilename(
             title="Selecciona un archivo JSON",
@@ -459,7 +557,7 @@ class JsonToCsvApp:
             return
 
         self.btn.config(state="disabled")
-        self.progress.start(10)
+        self.progress["value"] = 0  # resetear barra
         self.log_text.config(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.config(state="disabled")
@@ -471,9 +569,10 @@ class JsonToCsvApp:
                 log_fn=self.log,
                 ui_update_fn=self.ui_pump,
                 max_bytes=max_bytes,
+                progress_set_total=self.set_progress_total,
+                progress_step=self.progress_step,
             )
         finally:
-            self.progress.stop()
             self.btn.config(state="normal")
 
 
