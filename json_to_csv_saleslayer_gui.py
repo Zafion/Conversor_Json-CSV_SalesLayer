@@ -238,6 +238,7 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
         table_info = schema_info.get(table_name, {})
         headers = []
         col_meta = []  # guardamos (col_key, col_type) por índice
+        used_headers = set()
 
         for col in schema_list:
             if isinstance(col, str):
@@ -249,8 +250,12 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
                 key = "col"
 
             info = table_info.get(key, {})
-            header_name = info.get("sanitized") or key  # p.e. id_catalogue / title / etc.
             col_type = info.get("type")  # string, list, image, file, table, numeric…
+
+            # Usamos SIEMPRE el nombre original del campo
+            header_name = key
+
+            used_headers.add(header_name)  # puedes dejarlo para compatibilidad
             headers.append(escape_csv(header_name))
             col_meta.append((key, col_type))
 
