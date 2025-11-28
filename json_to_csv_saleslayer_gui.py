@@ -4,8 +4,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 
-# Límite en bytes (19MB)
-MAX_BYTES = 19 * 1024 * 1024
+# Valor por defecto en MB para el tamaño máximo de cada CSV
+DEFAULT_MAX_MB = 19
 
 
 def clean_description(html):
@@ -31,25 +31,24 @@ def escape_csv(value):
         return '""'
     s = str(value)
 
-    # 1) Normalizar saltos de línea y tabuladores
+    # Normalizar saltos de línea y tabuladores
     s = s.replace('\r\n', ' ')
     s = s.replace('\n', ' ')
     s = s.replace('\r', ' ')
     s = s.replace('\t', ' ')
 
-    # (Opcional pero recomendable) limpiar espacios extremos
+    # Limpiar espacios extremos
     s = s.strip()
 
-    # 2) Escapar comillas dobles
+    # Escapar comillas dobles
     s = s.replace('"', '""')
 
-    # 3) Devolver entrecomillado
     return f'"{s}"'
 
 
-def split_by_size(base_path, base_name, header, rows, log_fn=None, ui_update_fn=None):
+def split_by_size(base_path, base_name, header, rows, max_bytes, log_fn=None, ui_update_fn=None):
     """
-    Divide las filas en varios CSV de tamaño < MAX_BYTES.
+    Divide las filas en varios CSV de tamaño < max_bytes.
     base_path: ruta donde se guardan los ficheros
     base_name: nombre base de archivo (sin _n y sin .csv)
     header: string con la cabecera (terminado en \n)
@@ -71,7 +70,7 @@ def split_by_size(base_path, base_name, header, rows, log_fn=None, ui_update_fn=
         row_with_newline = row + "\n"
         row_bytes = len(row_with_newline.encode("utf-8"))
 
-        if current_bytes + row_bytes > MAX_BYTES:
+        if current_bytes + row_bytes > max_bytes:
             # Cerramos fichero actual y empezamos otro
             save_file(file_index, current)
             file_index += 1
@@ -91,7 +90,7 @@ def split_by_size(base_path, base_name, header, rows, log_fn=None, ui_update_fn=
 # ------------------------------------------------------------
 #  MODO 1: JSON simple (array de productos tipo BigCommerce)
 # ------------------------------------------------------------
-def generate_csv_from_products(products, base_path, log_fn=None, ui_update_fn=None):
+def generate_csv_from_products(products, base_path, max_bytes, log_fn=None, ui_update_fn=None):
     """
     Motor original: array de objetos con campos id/name/sku/variants/categories…
     Genera products_X.csv, variants_X.csv, categories_X.csv.
@@ -197,21 +196,21 @@ def generate_csv_from_products(products, base_path, log_fn=None, ui_update_fn=No
 
     if log_fn:
         log_fn("Dividiendo y guardando products_*.csv…")
-    split_by_size(base_path, "products", product_header, product_rows, log_fn, ui_update_fn)
+    split_by_size(base_path, "products", product_header, product_rows, max_bytes, log_fn, ui_update_fn)
 
     if log_fn:
         log_fn("Dividiendo y guardando variants_*.csv…")
-    split_by_size(base_path, "variants", variant_header, variant_rows, log_fn, ui_update_fn)
+    split_by_size(base_path, "variants", variant_header, variant_rows, max_bytes, log_fn, ui_update_fn)
 
     if log_fn:
         log_fn("Dividiendo y guardando categories_*.csv…")
-    split_by_size(base_path, "categories", category_header, category_rows, log_fn, ui_update_fn)
+    split_by_size(base_path, "categories", category_header, category_rows, max_bytes, log_fn, ui_update_fn)
 
 
 # ------------------------------------------------------------
 #  MODO 2: JSON Sales Layer genérico (todas las tablas)
 # ------------------------------------------------------------
-def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
+def export_saleslayer_tables(raw, base_path, max_bytes, log_fn=None, ui_update_fn=None):
     """
     Recorre data_schema + data y crea un CSV por tabla:
     catalogue_X.csv, products_X.csv, product_formats_X.csv, mat_tabla_test_X.csv, etc.
@@ -234,12 +233,12 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
         if log_fn:
             log_fn(f"Tabla {table_name}: {len(rows)} filas.")
 
-        # Construimos cabeceras usando sanitized si existe
         table_info = schema_info.get(table_name, {})
         headers = []
-        col_meta = []  # guardamos (col_key, col_type) por índice
-        used_headers = set()
+        col_meta = []
+        used_headers = set()  # por compatibilidad, aunque ahora no lo necesitamos
 
+        # Construimos cabeceras usando SIEMPRE el nombre original del campo
         for col in schema_list:
             if isinstance(col, str):
                 key = col
@@ -252,10 +251,9 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
             info = table_info.get(key, {})
             col_type = info.get("type")  # string, list, image, file, table, numeric…
 
-            # Usamos SIEMPRE el nombre original del campo
-            header_name = key
+            header_name = key  # siempre el nombre original
+            used_headers.add(header_name)
 
-            used_headers.add(header_name)  # puedes dejarlo para compatibilidad
             headers.append(escape_csv(header_name))
             col_meta.append((key, col_type))
 
@@ -268,7 +266,6 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
                 if isinstance(val, list):
                     urls = []
                     for elem in val:
-                        # elem: ["M","id","url"]
                         if isinstance(elem, list) and len(elem) >= 3:
                             urls.append(str(elem[2]))
                     return " | ".join(urls)
@@ -313,13 +310,13 @@ def export_saleslayer_tables(raw, base_path, log_fn=None, ui_update_fn=None):
                     log_fn(f"Tabla {table_name}: procesadas {r_idx}/{total_rows} filas…")
 
         # Guardar/splitear CSV de esta tabla
-        split_by_size(base_path, table_name, header_line, row_strings, log_fn, ui_update_fn)
+        split_by_size(base_path, table_name, header_line, row_strings, max_bytes, log_fn, ui_update_fn)
 
 
 # ------------------------------------------------------------
 #  DETECCIÓN DE FORMATO + LÓGICA PRINCIPAL
 # ------------------------------------------------------------
-def process_json_file(json_path, log_fn=None, ui_update_fn=None):
+def process_json_file(json_path, log_fn=None, ui_update_fn=None, max_bytes=DEFAULT_MAX_MB * 1024 * 1024):
     base_path = os.path.dirname(json_path) or "."
 
     if log_fn:
@@ -338,13 +335,13 @@ def process_json_file(json_path, log_fn=None, ui_update_fn=None):
     if isinstance(raw, list):
         if log_fn:
             log_fn("Detectado formato simple: array de productos en la raíz.")
-        generate_csv_from_products(raw, base_path, log_fn, ui_update_fn)
+        generate_csv_from_products(raw, base_path, max_bytes, log_fn, ui_update_fn)
 
     # Caso 2: JSON de Sales Layer (data_schema + data)
     elif isinstance(raw, dict) and "data_schema" in raw and "data" in raw:
         if log_fn:
             log_fn("Detectado JSON de Sales Layer (data_schema + data).")
-        export_saleslayer_tables(raw, base_path, log_fn, ui_update_fn)
+        export_saleslayer_tables(raw, base_path, max_bytes, log_fn, ui_update_fn)
 
     else:
         messagebox.showerror(
@@ -359,7 +356,8 @@ def process_json_file(json_path, log_fn=None, ui_update_fn=None):
 
     messagebox.showinfo(
         "Hecho",
-        "CSV creados y divididos correctamente (todos < 19MB)\n"
+        "CSV creados y divididos correctamente\n"
+        f"(tamaño máximo: {max_bytes // (1024 * 1024)} MB)\n"
         f"Carpeta: {os.path.abspath(base_path)}",
     )
     if log_fn:
@@ -373,7 +371,7 @@ class JsonToCsvApp:
     def __init__(self, root):
         self.root = root
         self.root.title("JSON → CSV (dividido) para Sales Layer")
-        self.root.geometry("750x520")
+        self.root.geometry("780x540")
 
         # Frame superior (texto + botón)
         top_frame = tk.Frame(root)
@@ -384,7 +382,8 @@ class JsonToCsvApp:
             text=(
                 "Conversor JSON → CSV para Sales Layer\n"
                 "• Formato simple: array de productos → products/variants/categories\n"
-                "• Formato Sales Layer: genera un CSV por tabla (catalogue, products, product_formats, mat_*, etc.)."
+                "• Formato Sales Layer: genera un CSV por tabla "
+                "(catalogue, products, product_formats, mat_*, etc.)."
             ),
             justify="left",
         )
@@ -396,6 +395,16 @@ class JsonToCsvApp:
             command=self.select_file,
         )
         self.btn.pack(side="right", padx=5)
+
+        # Campo para elegir el tamaño máximo del archivo (en MB)
+        size_frame = tk.Frame(root)
+        size_frame.pack(padx=10, pady=(0, 5), fill="x")
+
+        tk.Label(size_frame, text="Tamaño máximo por archivo (MB):").pack(side="left")
+
+        self.size_var = tk.StringVar(value=str(DEFAULT_MAX_MB))  # valor por defecto
+        self.size_entry = tk.Entry(size_frame, textvariable=self.size_var, width=6)
+        self.size_entry.pack(side="left", padx=5)
 
         # Barra de progreso
         progress_frame = tk.Frame(root)
@@ -433,20 +442,39 @@ class JsonToCsvApp:
             title="Selecciona un archivo JSON",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
         )
-        if file_path:
-            self.btn.config(state="disabled")
-            self.progress.start(10)
-            self.log_text.config(state="normal")
-            self.log_text.delete("1.0", "end")
-            self.log_text.config(state="disabled")
-            self.log("Iniciando conversión...")
-            try:
-                process_json_file(
-                    file_path, log_fn=self.log, ui_update_fn=self.ui_pump
-                )
-            finally:
-                self.progress.stop()
-                self.btn.config(state="normal")
+        if not file_path:
+            return
+
+        # Leer tamaño máximo en MB
+        try:
+            mb = float(self.size_var.get().replace(",", "."))
+            if mb <= 0:
+                raise ValueError
+            max_bytes = int(mb * 1024 * 1024)
+        except Exception:
+            messagebox.showerror(
+                "Error",
+                "Introduce un tamaño válido en MB (por ejemplo: 5, 10, 19…).",
+            )
+            return
+
+        self.btn.config(state="disabled")
+        self.progress.start(10)
+        self.log_text.config(state="normal")
+        self.log_text.delete("1.0", "end")
+        self.log_text.config(state="disabled")
+        self.log(f"Iniciando conversión… (límite {mb} MB por archivo)")
+
+        try:
+            process_json_file(
+                file_path,
+                log_fn=self.log,
+                ui_update_fn=self.ui_pump,
+                max_bytes=max_bytes,
+            )
+        finally:
+            self.progress.stop()
+            self.btn.config(state="normal")
 
 
 def main():
