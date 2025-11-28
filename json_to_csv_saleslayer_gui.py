@@ -26,11 +26,24 @@ def safe_ref(value, fallback):
 
 
 def escape_csv(value):
-    """Escapa un valor para CSV (dobles comillas y envuelto en comillas)."""
+    """Escapa un valor para CSV, eliminando saltos de línea y tabuladores."""
     if value is None:
         return '""'
     s = str(value)
+
+    # 1) Normalizar saltos de línea y tabuladores
+    s = s.replace('\r\n', ' ')
+    s = s.replace('\n', ' ')
+    s = s.replace('\r', ' ')
+    s = s.replace('\t', ' ')
+
+    # (Opcional pero recomendable) limpiar espacios extremos
+    s = s.strip()
+
+    # 2) Escapar comillas dobles
     s = s.replace('"', '""')
+
+    # 3) Devolver entrecomillado
     return f'"{s}"'
 
 
