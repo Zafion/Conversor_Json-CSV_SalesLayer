@@ -87,6 +87,26 @@ def split_by_size(base_path, base_name, header, rows, max_bytes, log_fn=None, ui
         save_file(file_index, current)
 
 
+def save_error_log(log_text, error_message, json_path):
+    """Guarda el log y el error en un archivo .txt al lado del JSON."""
+    try:
+        base_path = os.path.dirname(json_path) or "."
+        filename = "conversion_error_log.txt"
+        full_path = os.path.join(base_path, filename)
+
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write("=== Sales Layer JSON → CSV Converter ===\n")
+            f.write("Conversion failed.\n\n")
+            f.write("=== Error ===\n")
+            f.write(error_message + "\n\n")
+            f.write("=== Log ===\n")
+            f.write(log_text or "")
+
+        return full_path
+    except Exception:
+        return None
+
+
 # ------------------------------------------------------------
 #  MODO 1: JSON simple (array de productos tipo BigCommerce)
 # ------------------------------------------------------------
@@ -431,10 +451,10 @@ def process_json_file(
         with open(json_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
     except Exception as e:
-        messagebox.showerror("Error", f"JSON inválido o no legible:\n{e}")
         if log_fn:
             log_fn(f"ERROR al leer JSON: {e}")
-        return
+        # Propagamos para que select_file lo capture y genere el TXT
+        raise Exception(f"JSON inválido o no legible: {e}")
 
     # Caso 1: array simple de productos
     if isinstance(raw, list):
@@ -467,15 +487,14 @@ def process_json_file(
         )
 
     else:
-        messagebox.showerror(
-            "Error",
-            "No se ha reconocido el formato JSON.\n\n"
-            "• Formato simple: la raíz debe ser un array de productos.\n"
-            "• Formato Sales Layer: debe contener data_schema + data.",
-        )
         if log_fn:
             log_fn("ERROR: Formato JSON no reconocido.")
-        return
+        # Lanzamos excepción para que la GUI genere el log TXT
+        raise Exception(
+            "No se ha reconocido el formato JSON.\n\n"
+            "• Formato simple: la raíz debe ser un array de productos.\n"
+            "• Formato Sales Layer: debe contener data_schema + data."
+        )
 
     messagebox.showinfo(
         "Hecho",
@@ -568,6 +587,9 @@ class JsonToCsvApp:
         self.log_text.see("end")
         self.log_text.config(state="disabled")
 
+    def get_full_log(self):
+        return self.log_text.get("1.0", "end")
+
     def ui_pump(self):
         self.root.update_idletasks()
         self.root.update()
@@ -631,6 +653,22 @@ class JsonToCsvApp:
                 progress_set_total=self.set_progress_total,
                 progress_step=self.progress_step,
             )
+        except Exception as e:
+            error_msg = str(e)
+            full_log = self.get_full_log()
+            saved = save_error_log(full_log, error_msg, file_path)
+
+            if saved:
+                messagebox.showerror(
+                    "Error",
+                    f"Ocurrió un error durante la conversión.\n\n"
+                    f"Se ha guardado un archivo con el detalle en:\n{saved}",
+                )
+            else:
+                messagebox.showerror(
+                    "Error",
+                    "Ocurrió un error durante la conversión y no se pudo guardar el archivo de log.",
+                )
         finally:
             self.btn.config(state="normal")
 
