@@ -1,225 +1,239 @@
-# 🚀 JSON → CSV Converter for Sales Layer
+# JSON → CSV Converter for Sales Layer
 
-A graphical tool that converts Sales Layer JSON exports into clean, structured CSV files suitable for analysis, migrations, or integration pipelines.
+<details>
+<summary><strong>🇬🇧 English</strong></summary>
 
-Supports both:
+## 🚀 JSON → CSV Converter for Sales Layer
 
-- **Simple JSON arrays** (BigCommerce‑style product lists)  
-- **Full Sales Layer exports** (`data_schema` + `data` + any custom tables)
+A graphical tool that converts Sales Layer JSON exports into clean, structured CSV files suitable for analysis, migrations, or integrations.
 
-🔗 **Download Windows executable (.exe):**  
-https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/json_to_csv_saleslayer_gui.exe
+<img width="802" height="634" alt="image" src="https://github.com/user-attachments/assets/f0bc6da6-4c65-4392-bc44-e0ba52ece92f" />
 
----
 
-## ✨ Key Features
+Supports:
 
-### ✔️ Automatic export of all tables
-
-If the JSON contains tables like:
-
-- `products`
-- `product_formats`
-- `catalogue`
-- `mat_tabla_test`
-- `custom_table_abc`
-- *(any custom table created by the client)*
-
-A CSV will be generated for each table:
-
-```
-products_1.csv
-product_formats_1.csv
-catalogue_1.csv
-mat_tabla_test_1.csv
-custom_table_abc_1.csv
-```
+- **Simple JSON arrays** (BigCommerce‑style lists)
+- **Full Sales Layer exports** (`data_schema`, `data`, custom tables, multilingual fields)
 
 ---
 
-### ✔️ Correct, collision‑free column names
+## 📦 Download Executables
 
-Column names always match the original names in `data_schema`, including multilingual fields like:
+Built automatically by GitHub Actions:
 
-```
-name_en
-name_es
-name_fr
-```
-
-Never uses "sanitized" versions, avoiding name collisions.
+| Platform | Download |
+|---------|----------|
+| **Windows (.exe)** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775622 |
+| **macOS** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775315 |
+| **Linux** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712774783 |
 
 ---
 
-### ✔️ Full compatibility with Sales Layer field types
+## ✨ Features
 
-Each field type is handled according to:
+### ✔️ Automatic JSON Format Detection  
+- Simple JSON (array of products)  
+- Sales Layer JSON (data_schema + data)
 
-```json
-data_schema_info[table][field].type
+### ✔️ Multi‑language UI (NEW)  
+The interface can switch between **English** and **Spanish**.
+
+### ✔️ CSV Delimiter Selector (NEW)  
+Choose: `,` • `;` • `|` • `TAB`.
+
+### ✔️ Output File Size Limit (NEW)  
+Split CSV files automatically when exceeding a user‑defined MB size.
+
+### ✔️ Error Log Auto‑generation (NEW)  
+If any error occurs, a file is created next to the JSON:
+
+```
+conversion_error_log.txt
 ```
 
-| SL Type  | CSV Behavior |
-|----------|--------------|
-| `string` | Clean text |
-| `number` / `numeric` | Numeric value |
-| `boolean` | True/False text |
-| `list` | Comma‑separated |
-| `image` | Extracts URLs (`ORG`) separated by ` | ` |
-| `file`  | Extracts filenames separated by ` | ` |
-| `table` | Embedded JSON |
+Contains:
+- Error message  
+- Full on‑screen log  
+
+### ✔️ Supports All Sales Layer Field Types  
+Including: image arrays, file arrays, list fields, numeric, boolean, nested tables, and custom schemas.
+
+### ✔️ Full Table Export  
+Every table exported by Sales Layer is processed:
+
+- products  
+- product_formats  
+- catalogue  
+- mat_* tables  
+- any custom table created by the client  
+
+### ✔️ Safe CSV Formatting  
+- Removes line breaks  
+- Escapes quotes  
+- Strips HTML comments  
+- Prevents malformed CSV rows  
+
+### ✔️ Determinate Progress Bar  
+Reflects real row processing across all tables.
 
 ---
 
-### ✔️ Automatic size‑based file splitting
-
-Choose the **maximum CSV file size (MB)**.  
-Default: **19 MB**, adjustable in the interface.
-
-If a table exceeds the limit:
+## 🖥️ Running from Source
 
 ```
-products_1.csv
-products_2.csv
-products_3.csv
-```
-
----
-
-### ✔️ Automatic cleaning of HTML and line breaks
-
-- HTML fields (like `body_html`) are flattened into a single line  
-- Removes `
-`, `
-`, `	`  
-- Proper CSV quoting applied  
-
----
-
-### ✔️ Simple JSON array mode
-
-If the JSON file looks like:
-
-```json
-[
-  { "id": 1, "name": "...", "variants": [...] },
-  { "id": 2, "name": "...", "variants": [...] }
-]
-```
-
-The tool generates:
-
-```
-products_*.csv
-variants_*.csv
-categories_*.csv
-```
-
----
-
-## 🖥️ Graphical Interface
-
-Includes:
-
-- JSON file picker  
-- Editable “Max file size (MB)”  
-- Determinate progress bar  
-- Real‑time log output  
-- Clear error dialogs
-
-<img width="780" height="608" alt="image" src="https://github.com/user-attachments/assets/4ef5ba47-8a9d-47f1-8fab-12698cf31340" />
-
-
----
-
-# 📦 Install from source
-
-Requirements:
-
-- Python **3.8+**
-- No external dependencies
-
-Clone the project:
-
-```bash
-git clone https://github.com/Zafion/Conversor_Json-CSV_SalesLayer.git
-cd Conversor_Json-CSV_SalesLayer
-```
-
-Run:
-
-```bash
 python json_to_csv_saleslayer_gui.py
 ```
 
----
-
-# 🖥️ Download executable (.exe)
-
-Download the latest version:
-
-👉 https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/json_to_csv_saleslayer_gui.exe
-
-Runs without installation.
+Dependencies: **Only Tkinter**, included in Python.
 
 ---
 
-# 🏗️ Build your own .exe with PyInstaller
+## 🏗️ Building Manually (Optional)
 
-Install:
-
-```bash
-pip install pyinstaller
 ```
-
-Build:
-
-```bash
+pip install pyinstaller
 pyinstaller --onefile --windowed json_to_csv_saleslayer_gui.py
 ```
 
-The executable appears in:
+Result is in `dist/`.
+
+---
+
+## 🏭 GitHub Actions Auto‑Build
+
+Three binaries are generated for:
+- Windows  
+- macOS  
+- Linux  
+
+They appear under:  
+**Actions → Build desktop binaries → Artifacts**
+
+---
+
+## 🤝 Contributions  
+Pull requests are welcome!
+
+---
+
+</details>
+
+---
+
+<details>
+<summary><strong>🇪🇸 Español</strong></summary>
+
+## 🚀 Conversor JSON → CSV para Sales Layer
+
+Herramienta gráfica para convertir exportaciones JSON de Sales Layer en CSV limpios y estructurados para análisis, migraciones o integraciones.
+
+<img width="802" height="634" alt="image" src="https://github.com/user-attachments/assets/2878473e-a208-402d-82b8-ac0ea475dd8b" />
+
+
+Compatible con:
+
+- **JSON simple** (listas de productos tipo BigCommerce)  
+- **Exportaciones completas de Sales Layer** (`data_schema`, `data`, tablas personalizadas, campos por idioma)
+
+---
+
+## 📦 Descarga de ejecutables
+
+Compilados automáticamente por GitHub Actions:
+
+| Plataforma | Descarga |
+|-----------|----------|
+| **Windows (.exe)** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775622 |
+| **macOS** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775315 |
+| **Linux** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712774783 |
+
+---
+
+## ✨ Funcionalidades
+
+### ✔️ Detección automática del tipo de JSON  
+- JSON simple (array de productos)  
+- JSON de Sales Layer (data_schema + data)
+
+### ✔️ Interfaz multilenguaje (NUEVO)  
+Cambia entre **inglés** y **español**.
+
+### ✔️ Selector de delimitador CSV (NUEVO)  
+Elige entre: `,` • `;` • `|` • `TAB`.
+
+### ✔️ Tamaño máximo por archivo configurable (NUEVO)  
+Divide automáticamente los CSV según el tamaño elegido por el usuario.
+
+### ✔️ Generación automática de log de errores (NUEVO)  
+Si ocurre un error se genera:
 
 ```
-dist/json_to_csv_saleslayer_gui.exe
+conversion_error_log.txt
 ```
 
+Contiene:
+- El mensaje de error  
+- Todo el log mostrado en pantalla  
+
+### ✔️ Soporta todos los tipos de campo de Sales Layer  
+Incluye: imágenes, ficheros, listas, numéricos, booleanos, tablas anidadas y campos personalizados.
+
+### ✔️ Exportación completa de tablas  
+Cada tabla del JSON se exporta:
+
+- products  
+- product_formats  
+- catalogue  
+- mat_*  
+- cualquier tabla personalizada  
+
+### ✔️ Normalización segura del CSV  
+- Elimina saltos de línea  
+- Escapa comillas  
+- Limpia comentarios HTML  
+- Evita romper el CSV  
+
+### ✔️ Barra de progreso real  
+Basada en el conteo total de filas a procesar.
+
 ---
 
-# 📁 Project Structure
+## 🖥️ Ejecutar desde el código fuente
 
 ```
-Conversor_Json-CSV_SalesLayer/
-├── json_to_csv_saleslayer_gui.py
-├── json_to_csv_saleslayer_gui.exe   (optional)
-└── README.md
+python json_to_csv_saleslayer_gui.py
 ```
 
----
-
-# 🧪 Recommended testing
-
-- Small/simple JSONs  
-- Large Sales Layer exports  
-- Custom tables (mat_*, custom_*, etc.)  
-- HTML fields, images, files, lists, nested tables  
+Dependencias: **solo Tkinter** (incluido con Python).
 
 ---
 
-# ⚠️ Notes
+## 🏗️ Compilación manual (opcional)
 
-- CSV files are generated in the **same folder** as the JSON  
-- Large tables are automatically split  
-- JSON input is never modified  
+```
+pip install pyinstaller
+pyinstaller --onefile --windowed json_to_csv_saleslayer_gui.py
+```
 
----
-
-# 🤝 Contributing
-
-Issues and PRs are welcome!
+El resultado aparece en `dist/`.
 
 ---
 
-# 📄 License
+## 🏭 Compilación automática con GitHub Actions
 
-MIT License — free to use, modify, and distribute.
+Se generan ejecutables para:
+- Windows  
+- macOS  
+- Linux  
+
+Disponibles en:  
+**Actions → Build desktop binaries → Artifacts**
+
+---
+
+## 🤝 Contribuciones  
+¡Las PRs son bienvenidas!
+
+---
+
+</details>
