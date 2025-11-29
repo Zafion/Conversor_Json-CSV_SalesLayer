@@ -125,7 +125,10 @@ Includes:
 - Editable “Max file size (MB)”  
 - Determinate progress bar  
 - Real‑time log output  
-- Clear error dialogs  
+- Clear error dialogs
+
+<img width="780" height="608" alt="image" src="https://github.com/user-attachments/assets/4ef5ba47-8a9d-47f1-8fab-12698cf31340" />
+
 
 ---
 
