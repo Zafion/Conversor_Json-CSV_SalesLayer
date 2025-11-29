@@ -94,6 +94,7 @@ def generate_csv_from_products(
     products,
     base_path,
     max_bytes,
+    delimiter,
     log_fn=None,
     ui_update_fn=None,
     progress_set_total=None,
@@ -133,18 +134,48 @@ def generate_csv_from_products(
     category_set = set()
 
     product_header = (
-        "reference,name,description,brand,price,retail_price,"
-        "sale_price,cost_price,weight,width,height,depth,"
-        "images,category_references\n"
+        delimiter.join([
+            "reference",
+            "name",
+            "description",
+            "brand",
+            "price",
+            "retail_price",
+            "sale_price",
+            "cost_price",
+            "weight",
+            "width",
+            "height",
+            "depth",
+            "images",
+            "category_references",
+        ]) + "\n"
     )
 
     variant_header = (
-        "variant_reference,product_reference,price,retail_price,"
-        "sale_price,cost_price,weight,width,height,depth,upc,"
-        "inventory_level\n"
+        delimiter.join([
+            "variant_reference",
+            "product_reference",
+            "price",
+            "retail_price",
+            "sale_price",
+            "cost_price",
+            "weight",
+            "width",
+            "height",
+            "depth",
+            "upc",
+            "inventory_level",
+        ]) + "\n"
     )
 
-    category_header = "category_reference,category_name,parent_reference\n"
+    category_header = (
+        delimiter.join([
+            "category_reference",
+            "category_name",
+            "parent_reference",
+        ]) + "\n"
+    )
 
     total_items = len(products)
     if log_fn:
@@ -171,7 +202,7 @@ def generate_csv_from_products(
             cat_refs.append(name_cat.replace(" ", "_"))
         cats_str = ",".join(cat_refs)
 
-        product_row = ",".join(
+        product_row = delimiter.join(
             [
                 escape_csv(ref),
                 escape_csv(name),
@@ -197,7 +228,7 @@ def generate_csv_from_products(
         # Variantes
         variants = item.get("variants", []) or []
         for v in variants:
-            variant_row = ",".join(
+            variant_row = delimiter.join(
                 [
                     escape_csv(v.get("sku") or v.get("id") or ""),
                     escape_csv(ref),
@@ -231,7 +262,9 @@ def generate_csv_from_products(
     category_rows = []
     for cat in sorted(category_set_pre):
         ref_cat = cat.strip().replace(" ", "_")
-        category_rows.append(f"{escape_csv(ref_cat)},{escape_csv(cat)},")
+        category_rows.append(
+            delimiter.join([escape_csv(ref_cat), escape_csv(cat), ""])
+        )
 
         if progress_step:
             progress_step(1)
@@ -256,6 +289,7 @@ def export_saleslayer_tables(
     raw,
     base_path,
     max_bytes,
+    delimiter,
     log_fn=None,
     ui_update_fn=None,
     progress_set_total=None,
@@ -317,7 +351,7 @@ def export_saleslayer_tables(
             headers.append(escape_csv(header_name))
             col_meta.append((key, col_type))
 
-        header_line = ",".join(headers) + "\n"
+        header_line = delimiter.join(headers) + "\n"
 
         # Función para transformar valor según tipo
         def transform_value(val, ctype):
@@ -362,7 +396,7 @@ def export_saleslayer_tables(
             for i, (key, ctype) in enumerate(col_meta):
                 val = row[i] if i < len(row) else None
                 out_vals.append(escape_csv(transform_value(val, ctype)))
-            row_strings.append(",".join(out_vals))
+            row_strings.append(delimiter.join(out_vals))
 
             if progress_step:
                 progress_step(1)
@@ -384,6 +418,7 @@ def process_json_file(
     log_fn=None,
     ui_update_fn=None,
     max_bytes=DEFAULT_MAX_MB * 1024 * 1024,
+    delimiter=",",
     progress_set_total=None,
     progress_step=None,
 ):
@@ -409,6 +444,7 @@ def process_json_file(
             raw,
             base_path,
             max_bytes,
+            delimiter,
             log_fn,
             ui_update_fn,
             progress_set_total,
@@ -423,6 +459,7 @@ def process_json_file(
             raw,
             base_path,
             max_bytes,
+            delimiter,
             log_fn,
             ui_update_fn,
             progress_set_total,
@@ -457,7 +494,7 @@ class JsonToCsvApp:
     def __init__(self, root):
         self.root = root
         self.root.title("JSON → CSV (dividido) para Sales Layer")
-        self.root.geometry("780x540")
+        self.root.geometry("780x580")
 
         # Frame superior (texto + botón)
         top_frame = tk.Frame(root)
@@ -482,17 +519,29 @@ class JsonToCsvApp:
         )
         self.btn.pack(side="right", padx=5)
 
-        # Campo para elegir el tamaño máximo del archivo (en MB)
-        size_frame = tk.Frame(root)
-        size_frame.pack(padx=10, pady=(0, 5), fill="x")
+        # Frame de opciones (tamaño + delimitador)
+        options_frame = tk.Frame(root)
+        options_frame.pack(padx=10, pady=(0, 5), fill="x")
 
-        tk.Label(size_frame, text="Tamaño máximo por archivo (MB):").pack(side="left")
-
+        # Tamaño máximo (MB)
+        tk.Label(options_frame, text="Tamaño máximo por archivo (MB):").pack(side="left")
         self.size_var = tk.StringVar(value=str(DEFAULT_MAX_MB))  # valor por defecto
-        self.size_entry = tk.Entry(size_frame, textvariable=self.size_var, width=6)
+        self.size_entry = tk.Entry(options_frame, textvariable=self.size_var, width=6)
         self.size_entry.pack(side="left", padx=5)
 
-        # Barra de progreso (ahora en modo determinate)
+        # Delimitador CSV
+        tk.Label(options_frame, text="Delimitador CSV:").pack(side="left", padx=(20, 0))
+        self.delim_var = tk.StringVar(value=",")
+        self.delim_menu = ttk.Combobox(
+            options_frame,
+            textvariable=self.delim_var,
+            width=8,
+            state="readonly",
+            values=[",", ";", "|", "TAB"],
+        )
+        self.delim_menu.pack(side="left", padx=5)
+
+        # Barra de progreso (modo determinate)
         progress_frame = tk.Frame(root)
         progress_frame.pack(padx=10, pady=(0, 10), fill="x")
 
@@ -556,12 +605,21 @@ class JsonToCsvApp:
             )
             return
 
+        # Leer delimitador
+        delim_choice = self.delim_var.get()
+        if delim_choice == "TAB":
+            delimiter = "\t"
+        else:
+            delimiter = delim_choice
+
         self.btn.config(state="disabled")
         self.progress["value"] = 0  # resetear barra
         self.log_text.config(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.config(state="disabled")
-        self.log(f"Iniciando conversión… (límite {mb} MB por archivo)")
+        self.log(
+            f"Iniciando conversión… (límite {mb} MB por archivo, delimitador '{delim_choice}')"
+        )
 
         try:
             process_json_file(
@@ -569,6 +627,7 @@ class JsonToCsvApp:
                 log_fn=self.log,
                 ui_update_fn=self.ui_pump,
                 max_bytes=max_bytes,
+                delimiter=delimiter,
                 progress_set_total=self.set_progress_total,
                 progress_step=self.progress_step,
             )
