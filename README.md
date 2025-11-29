@@ -23,9 +23,9 @@ Built automatically by GitHub Actions:
 
 | Platform | Download |
 |---------|----------|
-| **Windows (.exe)** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775622 |
-| **macOS** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775315 |
-| **Linux** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712774783 |
+| **Windows (.exe)** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-windows-latest.zip |
+| **macOS** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-macos-latest.zip |
+| **Linux** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-ubuntu-latest.zip |
 
 ---
 
@@ -143,9 +143,9 @@ Compilados automáticamente por GitHub Actions:
 
 | Plataforma | Descarga |
 |-----------|----------|
-| **Windows (.exe)** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775622 |
-| **macOS** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712775315 |
-| **Linux** | https://github.com/Zafion/Conversor_Json-CSV_SalesLayer/actions/runs/19783400804/artifacts/4712774783 |
+| **Windows (.exe)** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-windows-latest.zip |
+| **macOS** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-macos-latest.zip |
+| **Linux** | https://raw.githubusercontent.com/Zafion/Conversor_Json-CSV_SalesLayer/refs/heads/main/app-ubuntu-latest.zip |
 
 ---
 
